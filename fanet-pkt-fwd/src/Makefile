@@ -1,12 +1,18 @@
 # fanet_pkt_fwd
 
-all: fanet_pkt_fwd
+all: fanet_pkt_fwd fanet_single_rx_tx
 
 fanet_pkt_fwd: base64.o parson.o radio.o jitqueue.o fanet_pkt_fwd.o
-	$(CC) fanet_pkt_fwd.o base64.o parson.o radio.o jitqueue.o $(LIBS) -luci -lrt -ldl -lpthread -o fanet_pkt_fwd
+	$(CC) fanet_pkt_fwd.o base64.o parson.o radio.o jitqueue.o $(LIBS) -lrt -ldl -lpthread -lm -o fanet_pkt_fwd
+
+fanet_single_rx_tx: radio.o fanet_single_rx_tx.o
+	$(CC) fanet_single_rx_tx.o radio.o  $(LIBS) -lrt -ldl -lpthread -lm -o fanet_single_rx_tx
 
 fanet_pkt_fwd.o: fanet_pkt_fwd.c
 	$(CC) $(CFLAGS) -c fanet_pkt_fwd.c
+
+fanet_single_rx_tx.o: fanet_single_rx_tx.c
+	$(CC) $(CFLAGS) -c fanet_single_rx_tx.c
 
 jitqueue.o: jitqueue.c
 	$(CC) $(CFLAGS) -c jitqueue.c
@@ -21,4 +27,4 @@ radio.o: radio.c
 	$(CC) $(CFLAGS) -c radio.c
 
 clean:
-	rm *.o fanet_pkt_fwd
+	rm *.o fanet_pkt_fwd fanet_single_rx_tx

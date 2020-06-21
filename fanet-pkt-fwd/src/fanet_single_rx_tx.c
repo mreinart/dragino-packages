@@ -18,6 +18,7 @@
 #define TX_MODE 0
 #define RX_MODE 1
 #define RADIOHEAD 1
+#define HEXBINARY 2
 
 #define RADIO1    "/dev/spidev1.0"
 #define RADIO2    "/dev/spidev2.0"
@@ -32,7 +33,7 @@ static char wd[8] = "241";
 static char prlen[8] = "8";
 static char power[8] = "14";
 static char freq[16] = "868200000";            /* frequency of radio */
-static char radio[16] = RADIO2;
+static char radio[16] = RADIO2  ;
 static char filepath[32] = {'\0'};
 static int mode = TX_MODE;
 static int payload_format = 0; 
@@ -54,13 +55,14 @@ static void sig_handler(int sigio) {
 }
 
 void print_help(void) {
-    printf("Usage: fanet_single_rx_tx  [-d radio_dev] select radio 1 or 2 (default:1) \n");
+    printf("Usage: fanet_single_rx_tx  [-d radio_dev] select radio 1 or 2 (default:2) \n");
     printf("                           [-t] set as tx\n");
     printf("                           [-r] set as rx\n");
-    printf("                           [-f frequence] (default:868500000)\n");
+    printf("                           [-H] save as HEX format\n");
+    printf("                           [-f frequency] (default:868200000)\n");
     printf("                           [-s spreadingFactor] (default: 7)\n");
-    printf("                           [-b bandwidth] default: 125k \n");
-    printf("                           [-w syncword] default: 52(0x34)reserver for lorawan\n");
+    printf("                           [-b bandwidth] default: 250k \n");
+    printf("                           [-w syncword] default: 241(0xF1)reserved for FANET\n");
     printf("                           [-c coderate] default: 5(4/5), range 5~8(4/8)\n");
     printf("                           [-p PreambleLength] default: 8, range 6~65535\n");
     printf("                           [-m message ]  message to send\n");
@@ -93,7 +95,7 @@ int main(int argc, char *argv[])
       //  exit(1);
     //}
 
-    while ((c = getopt(argc, argv, "trd:m:p:c:f:s:b:w:P:o:Rvh")) != -1) {
+    while ((c = getopt(argc, argv, "trHd:m:p:c:f:s:b:w:P:o:Rvh")) != -1) {
         switch (c) {
             case 'v':
                 getversion = true;
@@ -111,6 +113,9 @@ int main(int argc, char *argv[])
                 break;
             case 'r':
                 mode = RX_MODE;
+                break;
+            case 'H':
+                payload_format = HEXBINARY;
                 break;
             case 'R':
                 payload_format = RADIOHEAD;
@@ -206,20 +211,20 @@ int main(int argc, char *argv[])
     loradev = (radiodev *) malloc(sizeof(radiodev));
 
     if (device == 49){
-	loradev->nss = 15;
-	loradev->rst = 8;
-	loradev->dio[0] = 7;
-	loradev->dio[1] = 6;
-	loradev->dio[2] = 0;	
-	strncpy(radio, RADIO1, sizeof(radio));
+        loradev->nss = 15;
+        loradev->rst = 8;
+        loradev->dio[0] = 7;
+        loradev->dio[1] = 6;
+        loradev->dio[2] = 0;
+        strncpy(radio, RADIO1, sizeof(radio));
     }
     else if ( device == 50){
-	loradev->nss = 24;
-	loradev->rst = 23;
-	loradev->dio[0] = 22;
-	loradev->dio[1] = 20;
-	loradev->dio[2] = 0;
-	strncpy(radio, RADIO2, sizeof(radio));	
+        loradev->nss = 24;
+        loradev->rst = 23;
+        loradev->dio[0] = 22;
+        loradev->dio[1] = 20;
+        loradev->dio[2] = 0;
+        strncpy(radio, RADIO2, sizeof(radio));
     }
 
     loradev->spiport = lgw_spi_open(radio);
@@ -260,7 +265,7 @@ int main(int argc, char *argv[])
 		uint8_t payload_len;
 
 		if (strlen(input) < 1)
-			strcpy(input, "HELLO DRAGINO");	
+			strcpy(input, "Hello DRAGINO-FANET");
 
 		if ( payload_format == RADIOHEAD ) {
 			input[strlen((char *)input)] = 0x00;
@@ -291,9 +296,11 @@ int main(int argc, char *argv[])
 
         FILE * chan_fp = NULL;
         char tmp[256] = {'\0'};
-        char chan_path[32] = {'\0'};
+        char chan_path[256] = {'\0'};
         char *chan_id = NULL;
         char *chan_data = NULL;
+        char fanet_id[7] = {'\0'};    // VVuuuu
+        unsigned long device_id = 0;
         static int id_found = 0;
         static unsigned long next = 1, count_ok = 0, count_err = 0;
         int i, data_size;
@@ -311,6 +318,7 @@ int main(int argc, char *argv[])
                 if (received(loradev->spiport, &rxpkt)) {
 
                     data_size = rxpkt.size;
+                    MSG("\n-- Received %d bytes\n", data_size);
 
                     memset(tmp, 0, sizeof(tmp));
 
@@ -318,57 +326,46 @@ int main(int argc, char *argv[])
                         tmp[i] = rxpkt.payload[i];
                     }
 
-                    if (fp) {  
-                        fprintf(fp, "%s\n", rxpkt.payload);
+                    if (fp) {
+                        if ( payload_format == HEXBINARY ) {
+                            for (i = 0; i < rxpkt.size; i++) {
+                                fprintf(fp, "%02x", rxpkt.payload[i]);
+                            }
+                            fprintf(fp, "\n");
+                        } else {
+                            //fprintf(fp, "%s\n", rxpkt.payload);
+                            fwrite(rxpkt.payload, rxpkt.size, 1, fp);
+                        }
                         fflush(fp);
                     }
 
-                    if (tmp[2] == 0x00 && tmp[3] == 0x00) /* Maybe has HEADER ffff0000 */
-                         chan_data = &tmp[4];
+                    // get FANET ID from packet payload byte0 = type - addrr: bytes 1-3
+                    device_id = rxpkt.payload[1] << 16 + rxpkt.payload[3] << 8 + rxpkt.payload[2];
+                    sprintf(fanet_id, "%02X%02X%02X\0", rxpkt.payload[1], rxpkt.payload[3], rxpkt.payload[2]);
+                    next = time(0);
+                    if ( payload_format == HEXBINARY )
+                        sprintf(chan_path, "/var/fanet/packets/FANET-Packet-%ld-%s.hex", next, fanet_id);
                     else
-                         chan_data = tmp;
+                        sprintf(chan_path, "/var/fanet/packets/FANET-Packet-%ld-%s.bin", next, fanet_id);
+                    fprintf(stdout, "-- Channel file path: %s\n", chan_path);
 
-                    chan_id = chan_data;   /* init chan_id point to payload */
-
-                    /* the format of payload maybe : <chanid>chandata like as <1234>hello  */
-                    for (i = 0; i < 16; i++) { /* if radiohead lib then have 4 byte of RH_RF95_HEADER_LEN */
-                        if (tmp[i] == '<' && id_found == 0) {  /* if id_found more than 1, '<' found  more than 1 */
-                            chan_id = &tmp[i + 1];
-                            ++id_found;
-                        }
-
-                        if (tmp[i] == '>') { 
-                            tmp[i] = '\0';
-                            chan_data = tmp + i + 1;
-                            data_size = data_size - i;
-                            ++id_found;
-                        }
-
-                        if (id_found == 2) /* found channel id */ 
-                            break;
-                            
-                    }
-
-                    if (id_found == 2) 
-                        sprintf(chan_path, "/var/iot/channels/%s", chan_id);
-                    else {
-                        srand((unsigned)time(NULL)); 
-                        next = next * 1103515245 + 12345;
-                        sprintf(chan_path, "/var/iot/channels/%ld", (unsigned)(next/65536) % 32768);
-                    }
-
-                    id_found = 0;  /* reset id_found */
-                    
                     chan_fp  = fopen(chan_path, "w+");
                     if ( NULL !=  chan_fp ) {
-                        //fwrite(chan_data, sizeof(char), data_size, fp);  
-                        fprintf(chan_fp, "%s\n", chan_data);
+                        //fprintf(chan_fp, "%s\n", chan_data);
+                        //fwrite(chan_data, sizeof(char), data_size, chan_fp);
+                        if ( payload_format == HEXBINARY ) {
+                            for (i = 0; i < rxpkt.size; i++) {
+                                fprintf(chan_fp, "%02x", rxpkt.payload[i]);
+                            }
+                            fprintf(chan_fp, "\n");
+                        } else {
+                            fwrite(rxpkt.payload, rxpkt.size, 1, chan_fp);
+                        }
                         fflush(chan_fp);
                         fclose(chan_fp);
                     } else 
                         fprintf(stderr, "ERROR~ canot open file path: %s\n", chan_path); 
 
-                    //fprintf(stdout, "Received: %s\n", chan_data);
                     fprintf(stdout, "count_OK: %d, count_CRCERR: %d\n", ++count_ok, count_err);
                 } else                                             
                     fprintf(stdout, "REC_OK: %d, CRCERR: %d\n", count_ok, ++count_err);
