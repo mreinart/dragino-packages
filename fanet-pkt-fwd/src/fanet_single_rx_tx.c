@@ -1,6 +1,6 @@
 /**
- * Author: Dragino 
- * Date: 16/01/2018
+ * Author: Dragino / MR
+ * Date: 16/01/2018 / 2020-06-21
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -22,21 +22,21 @@
 #define RADIO1    "/dev/spidev1.0"
 #define RADIO2    "/dev/spidev2.0"
 
-static char ver[8] = "0.2";
+static char ver[8] = "0.1";
 
 /* lora configuration variables */
 static char sf[8] = "7";
-static char bw[8] = "125000";
+static char bw[8] = "250000";
 static char cr[8] = "5";
-static char wd[8] = "52";
+static char wd[8] = "241";
 static char prlen[8] = "8";
 static char power[8] = "14";
-static char freq[16] = "868500000";            /* frequency of radio */
-static char radio[16] = RADIO1;
+static char freq[16] = "868200000";            /* frequency of radio */
+static char radio[16] = RADIO2;
 static char filepath[32] = {'\0'};
 static int mode = TX_MODE;
 static int payload_format = 0; 
-static int device = 49;
+static int device = 50;
 static bool getversion = false;
 
 /* signal handling variables */
@@ -54,7 +54,7 @@ static void sig_handler(int sigio) {
 }
 
 void print_help(void) {
-    printf("Usage: lg02_single_rx_tx   [-d radio_dev] select radio 1 or 2 (default:1) \n");
+    printf("Usage: fanet_single_rx_tx  [-d radio_dev] select radio 1 or 2 (default:1) \n");
     printf("                           [-t] set as tx\n");
     printf("                           [-r] set as rx\n");
     printf("                           [-f frequence] (default:868500000)\n");
@@ -71,7 +71,7 @@ void print_help(void) {
     printf("                           [-h] show this help and exit \n");
 }
 
-int DEBUG_INFO = 0;       
+int DEBUG_INFO = 1;
 
 /* -------------------------------------------------------------------------- */
 /* --- MAIN FUNCTION -------------------------------------------------------- */
@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 
 	
     if (getversion) {
-		printf("lg02_single_rx_tx ver: %s\n",ver);
+		printf("fanet_single_rx_tx ver: %s\n",ver);
         exit(0);
     }	
 
