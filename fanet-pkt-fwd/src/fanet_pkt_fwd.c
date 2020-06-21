@@ -979,7 +979,6 @@ void thread_stat(void) {
         MSG_LOG(DEBUG_INFO, "REPORT~ # RF packets sent to concentrator: %u (%u bytes)\n", (cp_nb_tx_ok+cp_nb_tx_fail), cp_dw_payload_byte);
         MSG_LOG(DEBUG_INFO, "REPORT~ # TX errors: %u\n", cp_nb_tx_fail);
         MSG_LOG(DEBUG_INFO, "REPORT~ ##### END #####\n");
-        
 
         /* start composing datagram with the header */
         uint8_t token_h = (uint8_t)rand(); /* random token */
@@ -1336,10 +1335,10 @@ void thread_down(void) {
 
 	    i = b64_to_bin(str, strlen(str), txpkt.payload, sizeof(txpkt.payload));
 	    if (i != txpkt.size) {
-		MSG_LOG(DEBUG_WARNING, "WARNING~ [down] mismatch between .size and .data size once converter to binary\n");
+		    MSG_LOG(DEBUG_WARNING, "WARNING~ [down] mismatch between .size and .data size once converter to binary\n");
 	    }
 
-            //MSG_LOG(DEBUG_INFO, "INFO~ [down]receive txpk payload %d byte)\n", txpkt.size);
+	    MSG_LOG(DEBUG_INFO, "INFO~ [down]receive txpk payload %d byte)\n", txpkt.size);
 
 	    /* free the JSON parse tree from memory */
 	    json_value_free(root_val);

@@ -3,7 +3,7 @@
 all: fanet_pkt_fwd fanet_single_rx_tx
 
 fanet_pkt_fwd: base64.o parson.o radio.o jitqueue.o fanet_pkt_fwd.o
-	$(CC) fanet_pkt_fwd.o base64.o parson.o radio.o jitqueue.o $(LIBS) -lrt -ldl -lpthread -lm -o fanet_pkt_fwd
+	$(CC) fanet_pkt_fwd.o base64.o parson.o radio.o jitqueue.o $(LIBS) -luci -lrt -ldl -lpthread -lm -o fanet_pkt_fwd
 
 fanet_single_rx_tx: radio.o fanet_single_rx_tx.o
 	$(CC) fanet_single_rx_tx.o radio.o  $(LIBS) -lrt -ldl -lpthread -lm -o fanet_single_rx_tx

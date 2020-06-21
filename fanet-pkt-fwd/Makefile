@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fanet_pkt_fwd
-PKG_VERSION:=0.1.1
-PKG_RELEASE:=1
+PKG_VERSION:=0.1.2
+PKG_RELEASE:=2
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
@@ -34,9 +34,8 @@ endef
 define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(CP) $(PKG_BUILD_DIR)/$(PKG_NAME) $(1)/usr/bin
-	$(CP) $(PKG_BUILD_DIR)/lg01_pkt_fwd $(1)/usr/bin
-	$(CP) $(PKG_BUILD_DIR)/lg02_single_rx_tx $(1)/usr/bin
-	$(CP) $(PKG_BUILD_DIR)/spirw $(1)/usr/bin
+	$(CP) $(PKG_BUILD_DIR)/fanet_pkt_fwd $(1)/usr/bin
+	$(CP) $(PKG_BUILD_DIR)/fanet_single_rx_tx $(1)/usr/bin
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
