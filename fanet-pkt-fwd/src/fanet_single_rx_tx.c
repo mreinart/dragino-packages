@@ -198,13 +198,11 @@ int main(int argc, char *argv[])
         }
     }
 
-	
     if (getversion) {
 		printf("fanet_single_rx_tx ver: %s\n",ver);
         exit(0);
     }	
 
-	
 	/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
     /* radio device SPI_DEV init */
     radiodev *loradev;
@@ -265,31 +263,37 @@ int main(int argc, char *argv[])
 		uint8_t payload_len;
 
 		if (strlen(input) < 1)
-			strcpy(input, "Hello DRAGINO-FANET");
+			strcpy(input, "Hello FANET!");
 
-		if ( payload_format == RADIOHEAD ) {
-			input[strlen((char *)input)] = 0x00;
-			payload_len = strlen((char *)input) + 5;			
-			payload[0] = 0xff;
-			payload[1] = 0xff;
-			payload[2] = 0x00;
-			payload[3] = 0x00;
-			for (int i = 0; i < payload_len - 4; i++){
-				payload[i+4] = input[i];
-			}
-		}
-		else {
-			snprintf(payload, sizeof(payload), "%s", input);
-			payload_len = strlen((char *)payload);
-		}
+        if ( payload_format == HEXBINARY ) {
+            //snprintf(payload, sizeof(payload), "%s", input);
+            int cnt = strlen(input) / 2;
+            unsigned char result[256];
+            memset(result, 0, 256);
 
-		printf("Transmit Data(ASCII): %s\n", payload);
+            for (int i = 0; i<cnt; i++) {
+                unsigned int ui;
+                if (sscanf(input+2*i, "%02X", (unsigned int *)&ui) != 1) {
+                    break; // Didn't parse as expected
+                }
+                unsigned char c = ui;
+                result[i] = c;
+            }
+            memcpy(payload, result, cnt);
+            payload_len = cnt;
+        } else {
+            snprintf(payload, sizeof(payload), "%s", input);
+            payload_len = strlen((char *)payload);
+            printf("Transmit Data(ASCII): %s\n", payload);
+        }
+
 		printf("Transmit Data(HEX): ");
 		for(int i = 0; i < payload_len; i++) {
             printf("%02x", payload[i]);
         }
 		printf("\n");
 		single_tx(loradev, payload, payload_len);
+
     } else if ( mode == RX_MODE){
 
         struct pkt_rx_s rxpkt;
@@ -300,7 +304,6 @@ int main(int argc, char *argv[])
         char *chan_id = NULL;
         char *chan_data = NULL;
         char fanet_id[7] = {'\0'};    // VVuuuu
-        unsigned long device_id = 0;
         static int id_found = 0;
         static unsigned long next = 1, count_ok = 0, count_err = 0;
         int i, data_size;
@@ -316,16 +319,7 @@ int main(int argc, char *argv[])
             if(digitalRead(loradev->dio[0]) == 1) {
                 memset(rxpkt.payload, 0, sizeof(rxpkt.payload));
                 if (received(loradev->spiport, &rxpkt)) {
-
                     data_size = rxpkt.size;
-                    MSG("\n-- Received %d bytes\n", data_size);
-
-                    memset(tmp, 0, sizeof(tmp));
-
-                    for (i = 0; i < rxpkt.size; i++) {
-                        tmp[i] = rxpkt.payload[i];
-                    }
-
                     if (fp) {
                         if ( payload_format == HEXBINARY ) {
                             for (i = 0; i < rxpkt.size; i++) {
@@ -333,26 +327,22 @@ int main(int argc, char *argv[])
                             }
                             fprintf(fp, "\n");
                         } else {
-                            //fprintf(fp, "%s\n", rxpkt.payload);
                             fwrite(rxpkt.payload, rxpkt.size, 1, fp);
                         }
                         fflush(fp);
                     }
 
-                    // get FANET ID from packet payload byte0 = type - addrr: bytes 1-3
-                    device_id = rxpkt.payload[1] << 16 + rxpkt.payload[3] << 8 + rxpkt.payload[2];
+                    // get FANET ID from packet payload byte0 = type - addr: bytes 1-3
                     sprintf(fanet_id, "%02X%02X%02X\0", rxpkt.payload[1], rxpkt.payload[3], rxpkt.payload[2]);
                     next = time(0);
                     if ( payload_format == HEXBINARY )
                         sprintf(chan_path, "/var/fanet/packets/FANET-Packet-%ld-%s.hex", next, fanet_id);
                     else
                         sprintf(chan_path, "/var/fanet/packets/FANET-Packet-%ld-%s.bin", next, fanet_id);
-                    fprintf(stdout, "-- Channel file path: %s\n", chan_path);
+                    fprintf(stdout, "-- Packet file path: %s\n", chan_path);
 
                     chan_fp  = fopen(chan_path, "w+");
                     if ( NULL !=  chan_fp ) {
-                        //fprintf(chan_fp, "%s\n", chan_data);
-                        //fwrite(chan_data, sizeof(char), data_size, chan_fp);
                         if ( payload_format == HEXBINARY ) {
                             for (i = 0; i < rxpkt.size; i++) {
                                 fprintf(chan_fp, "%02x", rxpkt.payload[i]);

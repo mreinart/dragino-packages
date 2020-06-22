@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=fanet_pkt_fwd
-PKG_VERSION:=0.1.2
-PKG_RELEASE:=2
+PKG_VERSION:=0.1.4
+PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
@@ -14,12 +14,12 @@ define Package/$(PKG_NAME)
 	SECTION:=utils
 	CATEGORY:=Utilities
 	TITLE:=$(PKG_NAME)
-	MAINTAINER:=Dragino <support@dragino.com>
-	DEPENDS:=+libuci +libpthread +librt
+	MAINTAINER:=MR <manfred@tranier.de>
+	DEPENDS:=+libpthread +librt
 endef
 
 define Package/$(PKG_NAME)/description
-	FANET packet forwarder
+	FANET packet handler
 	For Dragino LG01/LG02
 endef
 
@@ -34,7 +34,6 @@ endef
 define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(CP) $(PKG_BUILD_DIR)/$(PKG_NAME) $(1)/usr/bin
-	$(CP) $(PKG_BUILD_DIR)/fanet_pkt_fwd $(1)/usr/bin
 	$(CP) $(PKG_BUILD_DIR)/fanet_single_rx_tx $(1)/usr/bin
 endef
 

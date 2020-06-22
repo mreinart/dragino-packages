@@ -785,8 +785,15 @@ int main(int argc, char *argv[])
 
                  memcpy((void *)(buff_up + buff_index), (void *)",\"data\":\"", 9); buff_index += 9;
                          
-                 j = bin_to_b64((uint8_t *)pktrx.payload, pktrx.size, (char *)(buff_up + buff_index), 341); /* 255 bytes = 340 chars in b64 + null char */
-
+                 //j = bin_to_b64((uint8_t *)pktrx.payload, pktrx.size, (char *)(buff_up + buff_index), 341); /* 255 bytes = 340 chars in b64 + null char */
+                 // Write HEX string for binary payload
+                 char hexStr[512];
+                 memset(hexStr, 0, 512);
+                 for (i = 0; i < pktrx.size; i++) {
+                     sprintf(hexStr, "%02x", pktrx.payload[i]);
+                 }
+                 memcpy((void *)(buff_up + buff_index), (void *)hexStr, strlen(hexStr)); buff_index += 9;
+                 j = strlen(hexStr);
                  buff_index += j;
                  buff_up[buff_index] = '"';
                  ++buff_index;
@@ -1669,46 +1676,22 @@ static void push_mqtt(struct pkt_rx_s* rx_pkt)
     for (i = 0; i < rx_pkt->size; i++) {
         tmp[i] = rx_pkt->payload[i];
     }
+    // get FANET ID from packet payload byte0 = type - addrr: bytes 1-3
+    char fanet_id[7];
+    sprintf(fanet_id, "%02X%02X%02X\0", rx_pkt->payload[1], rx_pkt->payload[3], rx_pkt->payload[2]);
+    unsigned long tms = time(0);
+    sprintf(chan_path, "/var/fanet/packets/FANET-Packet-%ld-%s.hex", tms, fanet_id);
 
-    if (tmp[2] == 0x00 && tmp[3] == 0x00) /* Maybe has HEADER ffff0000 */
-        chan_data = &tmp[4];
-    else
-        chan_data = tmp;
-
-    for (i = 0; i < 16; i++) { /* if radiohead lib then have 4 byte of RH_RF95_HEADER_LEN */
-        if (tmp[i] == '<' && id_found == 0) {  /* if id_found more than 1, '<' found  more than 1 */
-            chan_id = &tmp[i + 1];
-            ++id_found;
-        }
-
-        if (tmp[i] == '>') { 
-            tmp[i] = '\0';
-            chan_data = tmp + i + 1;
-            data_size = data_size - i;
-            ++id_found;
-        }
-
-        if (id_found == 2) /* found channel id */ 
-            break;
-            
-    }
-
-    if (id_found == 2) 
-        sprintf(chan_path, "/var/iot/channels/%s", chan_id);
-    else {
-        static unsigned long next = 1;
-        srand((unsigned)time(NULL));      /* random filename */
-        next = next * 1103515245 + 12345;
-        sprintf(chan_path, "/var/iot/receive/%ld", (unsigned)(next/65536) % 32768);
-    }
-    
     fp = fopen(chan_path, "w+");
     if ( NULL != fp ) {
 		clock_gettime(CLOCK_REALTIME, &fetch_time);
 		x1 = gmtime(&(fetch_time.tv_sec)); /* split the UNIX timestamp to its calendar components */
 		fprintf(fp,"%04i-%02i-%02iT%02i:%02i:%02i,", (x1->tm_year)+1900, (x1->tm_mon)+1, x1->tm_mday, x1->tm_hour, x1->tm_min, x1->tm_sec); /* ISO 8601 format */
 		fprintf(fp, "%.0f,",rx_pkt->rssi);
-        fprintf(fp, "%s\n", chan_data);
+        for (i = 0; i < rx_pkt->size; i++) {
+            fprintf(fp, "%02x", rx_pkt->payload[i]);
+        }
+        fprintf(fp, "\n");
         fflush(fp);
         fclose(fp);
     } else 
